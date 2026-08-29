@@ -132,6 +132,26 @@ def crawl_site(page: Page, site: SiteConfig) -> list[dict]:
     return results
 
 
+def _dedupe(rows: list[dict]) -> list[dict]:
+    """제목이 사실상 동일한 행은 하나만 남긴다.
+
+    같은 사이트 안에서 동일 공고가 다른 게시글 번호로 중복 게재되는 경우
+    (예: 모모365의 '2026 시군구연고산업육성사업 밀양 워캐이션 모집 공고'가
+    seq만 다르게 두 번 올라온 사례)와, 서로 다른 사이트가 같은 전국 단위
+    공고를 함께 보여주는 경우를 모두 제목 기준으로 걸러낸다. 먼저 나온
+    행을 유지한다.
+    """
+    seen: set[str] = set()
+    deduped: list[dict] = []
+    for r in rows:
+        key = re.sub(r"\s+", "", r["title"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(r)
+    return deduped
+
+
 def crawl_all(sites: Optional[list[SiteConfig]] = None, headless: bool = True) -> list[dict]:
     target_sites = sites if sites is not None else [s for s in SITES if s.enabled]
     all_results: list[dict] = []
@@ -168,4 +188,9 @@ def crawl_all(sites: Optional[list[SiteConfig]] = None, headless: bool = True) -
     for s in skipped:
         print(f"[{s.name}] 비활성화됨 (건너뜀): {s.notes}")
 
-    return all_results
+    deduped = _dedupe(all_results)
+    dup_count = len(all_results) - len(deduped)
+    if dup_count:
+        print(f"중복 제목 {dup_count}건 제거 (최종 {len(deduped)}건)")
+
+    return deduped
