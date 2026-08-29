@@ -92,6 +92,12 @@ def crawl_site(page: Page, site: SiteConfig) -> list[dict]:
                 if site.status_keep_pattern and not re.search(site.status_keep_pattern, status_text):
                     continue
 
+            if site.region_selector:
+                region_el = row.query_selector(site.region_selector)
+                region_text = region_el.inner_text() if region_el else ""
+                if site.region_keep_pattern and not re.search(site.region_keep_pattern, region_text):
+                    continue
+
             link = _build_link(site, row)
             if not link:
                 continue

@@ -38,6 +38,10 @@ class SiteConfig:
     status_selector: Optional[str] = None
     status_keep_pattern: Optional[str] = None  # 이 정규식에 매치되는 행만 유지
 
+    # 지역 정보가 있는 사이트(전국 통합 게시판)에서 서울/전국 공고만 남기고 싶을 때 사용
+    region_selector: Optional[str] = None
+    region_keep_pattern: Optional[str] = None  # 이 정규식에 매치되는 행만 유지
+
     # 제목이 이 정규식에 매치되면 해당 행은 스킵 (예: "[결과발표]" 등 공고가 아닌 글 제외)
     title_exclude_pattern: Optional[str] = None
 
@@ -89,14 +93,16 @@ SITES: list[SiteConfig] = [
         link_selector="a.item",
         deadline_source="column",
         deadline_selector="p.date",
+        region_selector="p.info span:first-child",
+        region_keep_pattern=r"서울|전국",
         wait_selector="div.output-list li",
         wait_timeout_ms=20000,
         notes=(
             "arko.or.kr은 포털 성격이라 실제 목록은 아르코 통합플랫폼(thearts.arko.or.kr)의 "
             "'공모' 게시판에 있음. 이 게시판은 '아트누리' 연동으로 전국 모든 기관의 공모를 "
-            "통합해서 보여주므로 아르코 자체 공고만 있는 게 아님(기관명 필터 기능 없음). "
-            "JS 렌더링 사이트라 wait_selector 필요. 날짜는 'YYYY.MM.DD - YYYY.MM.DD' 범위라 "
-            "끝 날짜를 마감일로 사용."
+            "통합해서 보여줌(기관명 필터 없이 그대로 사용하기로 함). JS 렌더링 사이트라 "
+            "wait_selector 필요. 날짜는 'YYYY.MM.DD - YYYY.MM.DD' 범위라 끝 날짜를 마감일로 "
+            "사용. p.info의 첫 번째 span이 지역이라 서울/전국 공고만 남기도록 필터링."
         ),
     ),
     SiteConfig(
@@ -142,10 +148,13 @@ SITES: list[SiteConfig] = [
         link_selector="td:nth-child(3) a",
         deadline_source="column",
         deadline_selector="td:nth-child(8)",
+        region_selector="td:nth-child(5)",
+        region_keep_pattern=r"서울|전국",
         notes=(
             "'공모사업' 게시판. 시작일/마감일이 각각 별도 컬럼(YYYY-MM-DD)으로 깔끔하게 "
             "분리되어 있어 파싱이 가장 단순함. 이 사이트 자체가 전국 문화예술 공모 통합 "
-            "플랫폼이라 여러 기관 공고가 섞여 나오는 것이 정상."
+            "플랫폼이라 여러 기관 공고가 섞여 나오는 것이 정상. 5번째 컬럼이 지역이라 "
+            "서울/전국 공고만 남기도록 필터링."
         ),
     ),
     SiteConfig(
