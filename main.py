@@ -5,7 +5,11 @@ python main.py --dry-run -> 크롤링만 하고 콘솔에만 출력 (시트 연�
 """
 import argparse
 
+from dotenv import load_dotenv
+
 from scraper.crawler import crawl_all
+
+load_dotenv()
 
 
 def main() -> None:

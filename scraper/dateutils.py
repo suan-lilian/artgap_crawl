@@ -47,30 +47,7 @@ def _resolve_year(month: int, day: int, reference_date: date) -> Optional[date]:
     return candidate
 
 
-def extract_deadline_from_title(title: str, reference_date: date) -> Optional[date]:
-    """제목 문자열 안에서 마감일을 추출한다.
-
-    우선순위:
-    1. 마지막 '~' 뒤에 나오는 날짜 (범위든 단일 마감이든 끝/마감 쪽 날짜)
-    2. '까지' 앞에 나오는 날짜
-    3. 그 외에는 마감일을 알 수 없다고 보고 None 반환 (거짓 양성 방지를 위해
-       제목 전체를 무작정 뒤지지 않음)
-    """
-    if not title:
-        return None
-
-    anchor_idx = None
-    tilde_idx = title.rfind("~")
-    if tilde_idx != -1:
-        anchor_idx = tilde_idx + 1
-    else:
-        until_idx = title.find("까지")
-        if until_idx != -1:
-            anchor_idx = max(0, until_idx - 20)
-
-    if anchor_idx is None:
-        return None
-
+def _date_from_anchor(title: str, anchor_idx: int, reference_date: date) -> Optional[date]:
     tail = title[anchor_idx : anchor_idx + 40]
 
     full_match = _FULL_DATE_RE.search(tail)
@@ -79,7 +56,7 @@ def extract_deadline_from_title(title: str, reference_date: date) -> Optional[da
         try:
             return date(int(y), int(m), int(d))
         except ValueError:
-            pass
+            return None
 
     md_match = _MD_RE.search(tail)
     if md_match:
@@ -88,3 +65,33 @@ def extract_deadline_from_title(title: str, reference_date: date) -> Optional[da
             return _resolve_year(m, d, reference_date)
 
     return None
+
+
+def extract_deadline_from_title(title: str, reference_date: date) -> Optional[date]:
+    """제목 문자열 안에서 마감일을 추출한다.
+
+    한 제목에 마감일이 여러 개 섞여 있는 경우(예: "(융자)4차 공모(~8.21),
+    (보증)5차 공모(~8.10)")가 있어, '~' 뒤/'까지' 앞 후보를 전부 모아서
+    그중 가장 늦은(미래에 가까운) 날짜를 마감일로 사용한다. 마지막 후보만
+    쓰면 이미 지난 날짜 때문에 실제로는 아직 열려있는 공모까지 마감 처리되는
+    문제가 있었음.
+
+    후보가 하나도 없으면 마감일을 알 수 없다고 보고 None을 반환한다(거짓
+    양성 방지를 위해 제목 전체를 무작정 뒤지지 않음).
+    """
+    if not title:
+        return None
+
+    anchor_idxs = [m.start() + 1 for m in re.finditer("~", title)]
+    for m in re.finditer("까지", title):
+        anchor_idxs.append(max(0, m.start() - 20))
+
+    if not anchor_idxs:
+        return None
+
+    candidates = [_date_from_anchor(title, idx, reference_date) for idx in anchor_idxs]
+    candidates = [c for c in candidates if c is not None]
+    if not candidates:
+        return None
+
+    return max(candidates)
